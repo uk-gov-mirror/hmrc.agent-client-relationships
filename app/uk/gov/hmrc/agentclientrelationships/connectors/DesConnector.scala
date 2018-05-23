@@ -144,6 +144,17 @@ class DesConnector @Inject() (
       }
   }
 
+  def getActiveClientItsaStrideRelationships(nino: Nino)(implicit c: HeaderCarrier, ec: ExecutionContext): Future[Option[ItsaRelationship]] = {
+    val encodedClientId = UriEncoding.encodePathSegment(nino.value, "UTF-8")
+    val url = new URL(s"$baseUrl/registration/relationship?ref-no=$encodedClientId&agent=false&active-only=true&regime=ITSA")
+
+    getWithDesHeaders[ItsaRelationshipResponse]("GetActiveClientItSaStrideRelationships", url)
+      .map(_.relationship.find(isActive)).recover {
+        case e: BadRequestException => None
+        case e: NotFoundException => None
+      }
+  }
+
   def getActiveClientVatRelationships(vrn: Vrn)(implicit c: HeaderCarrier, ec: ExecutionContext): Future[Option[VatRelationship]] = {
     val encodedClientId = UriEncoding.encodePathSegment(vrn.value, "UTF-8")
     val url = new URL(s"$baseUrl/registration/relationship?idtype=VRN&ref-no=$encodedClientId&agent=false&active-only=true&regime=VATC")

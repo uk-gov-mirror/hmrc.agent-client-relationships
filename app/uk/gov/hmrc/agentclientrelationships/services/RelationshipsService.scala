@@ -401,4 +401,8 @@ class RelationshipsService @Inject() (
   def getVatRelationshipForClient(clientId: Vrn)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Option[VatRelationship]] = {
     des.getActiveClientVatRelationships(clientId)
   }
+
+  def getItsaStrideRelationshipForClient(clientId: Nino)(implicit hc: HeaderCarrier, ec: ExecutionContext) = {
+    des.getActiveClientItsaStrideRelationships(clientId)
+  }
 }

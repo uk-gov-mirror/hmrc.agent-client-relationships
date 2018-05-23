@@ -15,3 +15,6 @@ GET           /agent/:arn/service/HMCE-VATDEC-ORG/client/vrn/:vrn            @uk
 # List of existing relationships
 GET           /service/HMRC-MTD-IT/client/relationship                       @uk.gov.hmrc.agentclientrelationships.controllers.RelationshipsController.getItsaRelationship
 GET           /service/HMRC-MTD-VAT/client/relationship                      @uk.gov.hmrc.agentclientrelationships.controllers.RelationshipsController.getVatRelationship
+
+GET           /service/HMRC-MTD-IT/client/NI/:nino/relationship                 @uk.gov.hmrc.agentclientrelationships.controllers.RelationshipsController.getStrideItsaRelationship(nino: uk.gov.hmrc.domain.Nino)
+GET           /service/HMRC-MTD-VAT/client/VRN/:vrn/relationship                 @uk.gov.hmrc.agentclientrelationships.controllers.RelationshipsController.getStrideVatRelationship(vrn: uk.gov.hmrc.agentmtdidentifiers.model.Vrn)

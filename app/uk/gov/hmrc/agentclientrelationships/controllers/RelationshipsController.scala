@@ -16,8 +16,9 @@
 
 package uk.gov.hmrc.agentclientrelationships.controllers
 
-import javax.inject.{ Inject, Singleton }
-import play.api.Logger
+import javax.inject.{ Inject, Named, Singleton }
+import play.api.Mode.Mode
+import play.api.{ Configuration, Environment, Logger }
 import play.api.libs.json.Json
 import play.api.mvc.{ Action, AnyContent }
 import uk.gov.hmrc.agentclientrelationships.audit.AuditData
@@ -38,8 +39,13 @@ import scala.util.control.NonFatal
 @Singleton
 class RelationshipsController @Inject() (
   override val authConnector: AuthConnector,
-  service: RelationshipsService)
+  service: RelationshipsService,
+  val env: Environment,
+  val config: Configuration,
+  @Named("auth.stride.enrolment") strideIdentifier: String)
   extends BaseController with AuthActions {
+
+  val mode: Mode = env.mode
 
   def checkWithMtdItId(arn: Arn, mtdItId: MtdItId): Action[AnyContent] = checkWithTaxIdentifier(arn, mtdItId)
 
@@ -176,6 +182,24 @@ class RelationshipsController @Inject() (
     service.getVatRelationshipForClient(clientId).map {
       case Some(relationship) => Ok(Json.toJson(relationship))
       case None => NotFound
+    }
+  }
+
+  def getStrideItsaRelationship(nino: Nino): Action[AnyContent] = Action.async { implicit request =>
+    authorisedWithStrideEnrolment(strideIdentifier) { implicit strideId =>
+      service.getItsaStrideRelationshipForClient(nino).map {
+        case Some(relationship) => Ok(Json.toJson(relationship))
+        case None => NotFound
+      }
+    }
+  }
+
+  def getStrideVatRelationship(vrn: Vrn): Action[AnyContent] = Action.async { implicit request =>
+    authorisedWithStrideEnrolment(strideIdentifier) { implicit strideId =>
+      service.getVatRelationshipForClient(vrn).map {
+        case Some(relationship) => Ok(Json.toJson(relationship))
+        case None => NotFound
+      }
     }
   }
 }
