@@ -70,7 +70,8 @@ class AuditService @Inject()(val auditConnector: AuditConnector) {
     "enrolmentDelegated",
     "nino",
     "AgentDBRecord",
-    "Journey"
+    "Journey",
+    "authProviderIdType"
   )
 
   val createRelationshipDetailsFieldsForMtdVat = Seq(
@@ -84,7 +85,9 @@ class AuditService @Inject()(val auditConnector: AuditConnector) {
     "etmpRelationshipCreated",
     "enrolmentDelegated",
     "AgentDBRecord",
-    "Journey")
+    "Journey",
+    "authProviderIdType"
+  )
 
   val CheckCESADetailsFields = Seq("agentCode", "credId", "arn", "saAgentRef", "CESARelationship", "nino")
 
