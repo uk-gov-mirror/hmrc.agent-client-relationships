@@ -13,6 +13,7 @@ lazy val scoverageSettings = {
     parallelExecution in Test := false
   )
 }
+val silencerVersion = "1.4.3"
 
 lazy val compileDeps = Seq(
   ws,
@@ -20,11 +21,15 @@ lazy val compileDeps = Seq(
   "uk.gov.hmrc" %% "auth-client" % "2.21.0-play-25",
   "uk.gov.hmrc" %% "agent-mtd-identifiers" % "0.17.0-play-25",
   "uk.gov.hmrc" %% "agent-kenshoo-monitoring" % "3.8.0",
-  "uk.gov.hmrc" %% "simple-reactivemongo" % "7.20.0-play-25",
   "uk.gov.hmrc" %% "mongo-lock" % "6.12.0-play-25",
   "de.threedimensions" %% "metrics-play" % "2.5.13",
   "com.github.blemale" %% "scaffeine" % "2.6.0",
-  "org.typelevel" %% "cats" % "0.9.0"
+  "org.typelevel" %% "cats" % "0.9.0",
+  "uk.gov.hmrc" %% "simple-reactivemongo" % "7.20.0-play-25",
+  "org.reactivemongo" %% "play2-reactivemongo" % "0.19.4-play25",
+  compilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full),
+  "com.github.ghik" % "silencer-lib" % silencerVersion % Provided cross CrossVersion.full
+
 )
 
 def testDeps(scope: String) = Seq(
@@ -68,6 +73,7 @@ lazy val root = (project in file("."))
     scoverageSettings,
     unmanagedResourceDirectories in Compile += baseDirectory.value / "resources",
     routesImport ++= Seq("uk.gov.hmrc.agentclientrelationships.binders.PathBinders._"),
+    routesGenerator := InjectedRoutesGenerator,
     scalafmtOnCompile in Compile := true,
     scalafmtOnCompile in Test := true
   )

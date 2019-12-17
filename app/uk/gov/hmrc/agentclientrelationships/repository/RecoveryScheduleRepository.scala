@@ -55,10 +55,10 @@ class MongoRecoveryScheduleRepository @Inject()(mongoComponent: ReactiveMongoCom
     with RecoveryScheduleRepository
     with StrictlyEnsureIndexes[RecoveryRecord, BSONObjectID] {
 
-  import ImplicitBSONHandlers._
+  //import ImplicitBSONHandlers._
 
-  override def indexes =
-    Seq(Index(Seq("uid" -> Ascending, "runAt" -> Ascending), unique = true))
+//  override def indexes =
+//    Seq(Index(Seq("uid" -> Ascending, "runAt" -> Ascending), unique = true))
 
   def read(implicit ec: ExecutionContext): Future[RecoveryRecord] =
     findAll().flatMap(_.headOption match {

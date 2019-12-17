@@ -111,12 +111,12 @@ class MongoDeleteRecordRepository @Inject()(mongoComponent: ReactiveMongoCompone
 
   private def clientIdentifierType(identifier: TaxIdentifier) = TypeOfEnrolment(identifier).identifierKey
 
-  override def indexes: Seq[Index] =
-    Seq(
-      Index(
-        Seq("arn" -> Ascending, "clientIdentifier" -> Ascending, "clientIdentifierType" -> Ascending),
-        Some("arnAndAgentReference"),
-        unique = true))
+//  override def indexes: Seq[Index] =
+//    Seq(
+//      Index(
+//        Seq("arn" -> Ascending, "clientIdentifier" -> Ascending, "clientIdentifierType" -> Ascending),
+//        Some("arnAndAgentReference"),
+//        unique = true))
 
   def create(record: DeleteRecord)(implicit ec: ExecutionContext): Future[Int] =
     insert(record).map { result =>
@@ -179,15 +179,15 @@ class MongoDeleteRecordRepository @Inject()(mongoComponent: ReactiveMongoCompone
       "clientIdentifierType" -> clientIdentifierType(identifier))
       .map(_.n)
 
-  override def selectNextToRecover(implicit ec: ExecutionContext): Future[Option[DeleteRecord]] = {
-    import reactivemongo.play.json.ImplicitBSONHandlers.JsObjectDocumentWriter
-    collection
-      .find(selector = Json.obj(), projection = None)
-      .sort(JsObject(Seq("lastRecoveryAttempt" -> JsNumber(1))))
-      .cursor[DeleteRecord](ReadPreference.primaryPreferred)(
-        domainFormatImplicit,
-        implicitly[CursorProducer[DeleteRecord]])
-      .headOption
-  }
+  override def selectNextToRecover(implicit ec: ExecutionContext): Future[Option[DeleteRecord]] =
+//    import reactivemongo.play.json.ImplicitBSONHandlers.JsObjectDocumentWriter
+    ////    collection
+    ////      .find(selector = Json.obj(), projection = None)
+    ////      .sort(JsObject(Seq("lastRecoveryAttempt" -> JsNumber(1))))
+    ////      .cursor[DeleteRecord](ReadPreference.primaryPreferred)(
+    ////        domainFormatImplicit,
+    ////        implicitly[CursorProducer[DeleteRecord]])
+    ////      .headOption
+    Future successful (None)
 
 }

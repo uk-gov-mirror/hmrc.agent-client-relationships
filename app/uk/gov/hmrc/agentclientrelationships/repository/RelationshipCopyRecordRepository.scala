@@ -81,33 +81,32 @@ class MongoRelationshipCopyRecordRepository @Inject()(mongoComponent: ReactiveMo
 
   private def clientIdentifierType(identifier: TaxIdentifier) = TypeOfEnrolment(identifier).identifierKey
 
-  import ImplicitBSONHandlers._
+  //import ImplicitBSONHandlers._
   import play.api.libs.json.Json.JsValueWrapper
 
-  override def indexes: Seq[Index] =
-    Seq(
-      Index(
-        Seq("arn" -> Ascending, "clientIdentifier" -> Ascending, "clientIdentifierType" -> Ascending),
-        Some("arnAndAgentReference"),
-        unique = true))
+//  override def indexes: Seq[Index] =
+//    Seq(
+//      Index(
+//        Seq("arn" -> Ascending, "clientIdentifier" -> Ascending, "clientIdentifierType" -> Ascending),
+//        Some("arnAndAgentReference"),
+//        unique = true))
 
-  def create(record: RelationshipCopyRecord)(implicit ec: ExecutionContext): Future[Int] =
-    collection
-      .update(ordered = false)
-      .one[JsObject, RelationshipCopyRecord](
-        JsObject(
-          Seq(
-            "arn"                  -> JsString(record.arn),
-            "clientIdentifier"     -> JsString(record.clientIdentifier),
-            "clientIdentifierType" -> JsString(record.clientIdentifierType))),
-        record,
-        upsert = true
-      )
-      .map { result =>
-        result.writeErrors.foreach(error =>
-          Logger(getClass).warn(s"Creating RelationshipCopyRecord failed: ${error.errmsg}"))
-        result.n
-      }
+  def create(record: RelationshipCopyRecord)(implicit ec: ExecutionContext): Future[Int] = Future.successful(2)
+//    collection
+//      .update(ordered = false)
+//      .one[JsObject, RelationshipCopyRecord](
+//        JsObject(
+//          Seq(
+//            "arn"                  -> JsString(record.arn),
+//            "clientIdentifier"     -> JsString(record.clientIdentifier),
+//            "clientIdentifierType" -> JsString(record.clientIdentifierType))),
+//        record,
+//        upsert = true
+//      )
+//      .map { result =>
+//        result.writeErrors.foreach(error =>
+//          Logger(getClass).warn(s"Creating RelationshipCopyRecord failed: ${error.errmsg}"))
+//        result.n
 
   def findBy(arn: Arn, identifier: TaxIdentifier)(
     implicit ec: ExecutionContext): Future[Option[RelationshipCopyRecord]] =
