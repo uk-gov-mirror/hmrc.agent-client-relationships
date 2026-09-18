@@ -17,7 +17,6 @@
 package uk.gov.hmrc.agentclientrelationships.controllers
 
 import org.mongodb.scala.ObservableFuture
-
 import com.google.inject.AbstractModule
 import org.mongodb.scala.bson.BsonDocument
 import org.scalatest.concurrent.IntegrationPatience
@@ -32,7 +31,7 @@ import play.api.test.FakeRequest
 import play.api.test.Helpers.*
 import uk.gov.hmrc.agentclientrelationships.connectors.helpers.CorrelationIdGenerator
 import uk.gov.hmrc.agentclientrelationships.model.identifiers.*
-import uk.gov.hmrc.agentclientrelationships.model.{EnrolmentKey => LocalEnrolmentKey}
+import uk.gov.hmrc.agentclientrelationships.model.EnrolmentKey as LocalEnrolmentKey
 import uk.gov.hmrc.agentclientrelationships.repository.*
 import uk.gov.hmrc.agentclientrelationships.services.MongoLockService
 import uk.gov.hmrc.agentclientrelationships.services.MongoLockServiceImpl
@@ -44,6 +43,7 @@ import uk.gov.hmrc.domain.TaxIdentifier
 import uk.gov.hmrc.http.HttpResponse
 import uk.gov.hmrc.mongo.CurrentTimestampSupport
 import uk.gov.hmrc.mongo.MongoComponent
+import uk.gov.hmrc.mongo.lock.MongoLockRepository
 import uk.gov.hmrc.mongo.test.MongoSupport
 
 import scala.concurrent.Future
@@ -79,7 +79,7 @@ with IntegrationPatience {
     }
 
   lazy val mongoRecoveryLockService: MongoLockService = new MongoLockServiceImpl(mongoLockRepository)
-  def mongoLockRepository = new MongoLockRepositoryWithMdc(mongoComponent, new CurrentTimestampSupport)
+  def mongoLockRepository = new MongoLockRepository(mongoComponent, new CurrentTimestampSupport)
 
   object FakeCorrelationIdGenerator
   extends CorrelationIdGenerator {

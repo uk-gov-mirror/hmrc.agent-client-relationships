@@ -30,7 +30,6 @@ import uk.gov.hmrc.crypto.Decrypter
 import uk.gov.hmrc.crypto.Encrypter
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
-import uk.gov.hmrc.mdc.Mdc
 
 import javax.inject.*
 import scala.concurrent.ExecutionContext
@@ -57,45 +56,35 @@ with RequestAwareLogging {
   // to support static link for agents there is no TTL
   override lazy val requiresTtlIndex: Boolean = false
 
-  def create(agentReferenceRecord: AgentReferenceRecord): Future[Unit] = Mdc.preservingMdc {
-    collection
-      .insertOne(agentReferenceRecord)
-      .toFuture()
-      .map(_ => ())
-  }
+  def create(agentReferenceRecord: AgentReferenceRecord): Future[Unit] = collection
+    .insertOne(agentReferenceRecord)
+    .toFuture()
+    .map(_ => ())
 
-  def findBy(uid: String): Future[Option[AgentReferenceRecord]] = Mdc.preservingMdc {
-    collection.find(equal("uid", uid)).headOption()
-  }
+  def findBy(uid: String): Future[Option[AgentReferenceRecord]] = collection.find(equal("uid", uid)).first().toFutureOption()
 
-  def findByArn(arn: Arn): Future[Option[AgentReferenceRecord]] = Mdc.preservingMdc {
-    collection.find(equal("arn", arn.value)).headOption()
-  }
+  def findByArn(arn: Arn): Future[Option[AgentReferenceRecord]] = collection.find(equal("arn", arn.value)).first().toFutureOption()
 
   def updateAgentName(
     uid: String,
     newAgentName: String
-  ): Future[Unit] = Mdc.preservingMdc {
-    collection
-      .updateOne(equal("uid", uid), addToSet("normalisedAgentNames", encryptedString(newAgentName)))
-      .toFuture()
-      .map { updateOneResult =>
-        if (updateOneResult.getModifiedCount == 1)
-          ()
-        else
-          throw new RuntimeException("could not update agent reference name, no matching uid found.")
-      }
-  }
-
-  def delete(arn: Arn)(using request: RequestHeader): Future[Unit] = Mdc.preservingMdc {
-    collection
-      .deleteOne(equal("arn", arn.value))
-      .toFuture()
-      .map { r =>
-        if (r.getDeletedCount == 0)
-          logger.error("could not delete agent reference record, no matching ARN found.")
+  ): Future[Unit] = collection
+    .updateOne(equal("uid", uid), addToSet("normalisedAgentNames", encryptedString(newAgentName)))
+    .toFuture()
+    .map { updateOneResult =>
+      if (updateOneResult.getModifiedCount == 1)
         ()
-      }
-  }
+      else
+        throw new RuntimeException("could not update agent reference name, no matching uid found.")
+    }
+
+  def delete(arn: Arn)(using request: RequestHeader): Future[Unit] = collection
+    .deleteOne(equal("arn", arn.value))
+    .toFuture()
+    .map { r =>
+      if (r.getDeletedCount == 0)
+        logger.error("could not delete agent reference record, no matching ARN found.")
+      ()
+    }
 
 }

@@ -34,7 +34,7 @@ import uk.gov.hmrc.agentclientrelationships.util.CryptoUtil.encryptedString
 import uk.gov.hmrc.agentclientrelationships.util.RequestAwareLogging
 import uk.gov.hmrc.crypto.Decrypter
 import uk.gov.hmrc.crypto.Encrypter
-import uk.gov.hmrc.mdc.Mdc
+
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 
@@ -91,7 +91,7 @@ with RequestAwareLogging {
     arn: Arn,
     service: String,
     nino: NinoWithoutSuffix
-  ): Future[Done] = Mdc.preservingMdc {
+  ): Future[Done] =
     require(List(HMRCMTDIT, HMRCMTDITSUPP).contains(service))
     val partialAuth = PartialAuthRelationship(
       created,
@@ -112,107 +112,92 @@ with RequestAwareLogging {
         throw new RuntimeException(s"Attempted to create a duplicate active partial auth relationship for ${arn.value} and ${nino.value}")
       case None => collection.insertOne(partialAuth).toFuture().map(_ => Done)
     }
-  }
 
   def findActiveForAgent(
     nino: NinoWithoutSuffix,
     arn: Arn
-  ): Future[Option[PartialAuthRelationship]] = Mdc.preservingMdc {
-    collection
-      .find(
-        and(
-          in(
-            "service",
-            HMRCMTDIT,
-            HMRCMTDITSUPP
-          ),
-          equal("nino", encryptedString(nino.value)),
-          equal("arn", arn.value),
-          equal("active", true)
-        )
+  ): Future[Option[PartialAuthRelationship]] = collection
+    .find(
+      and(
+        in(
+          "service",
+          HMRCMTDIT,
+          HMRCMTDITSUPP
+        ),
+        equal("nino", encryptedString(nino.value)),
+        equal("arn", arn.value),
+        equal("active", true)
       )
-      .headOption()
-  }
+    )
+    .first().toFutureOption()
 
-  def findActiveForClient(nino: NinoWithoutSuffix): Future[Seq[PartialAuthRelationship]] = Mdc.preservingMdc {
-    collection
-      .find(and(equal("nino", encryptedString(nino.value)), equal("active", true)))
-      .toFuture()
-  }
+  def findActiveForClient(nino: NinoWithoutSuffix): Future[Seq[PartialAuthRelationship]] = collection
+    .find(and(equal("nino", encryptedString(nino.value)), equal("active", true)))
+    .toFuture()
 
   def findActive(
     serviceId: String,
     nino: NinoWithoutSuffix,
     arn: Arn
-  ): Future[Option[PartialAuthRelationship]] = Mdc.preservingMdc {
-    collection
-      .find(
-        and(
-          equal("service", serviceId),
-          equal("nino", encryptedString(nino.value)),
-          equal("arn", arn.value),
-          equal("active", true)
-        )
+  ): Future[Option[PartialAuthRelationship]] = collection
+    .find(
+      and(
+        equal("service", serviceId),
+        equal("nino", encryptedString(nino.value)),
+        equal("arn", arn.value),
+        equal("active", true)
       )
-      .headOption()
-  }
+    )
+    .first().toFutureOption()
 
-  def findAllForClient(nino: NinoWithoutSuffix): Future[Seq[PartialAuthRelationship]] = Mdc.preservingMdc {
-    collection
-      .find(equal("nino", encryptedString(nino.value)))
-      .toFuture()
-  }
+  def findAllForClient(nino: NinoWithoutSuffix): Future[Seq[PartialAuthRelationship]] = collection
+    .find(equal("nino", encryptedString(nino.value)))
+    .toFuture()
 
   /* this will only find partially authorised ITSA main agents for a given nino string */
-  def findMainAgent(nino: String): Future[Option[PartialAuthRelationship]] = Mdc.preservingMdc {
-    collection
-      .find(
-        and(
-          equal("service", HMRCMTDIT),
-          equal("nino", encryptedString(NinoWithoutSuffix(nino).value)),
-          equal("active", true)
-        )
+  def findMainAgent(nino: String): Future[Option[PartialAuthRelationship]] = collection
+    .find(
+      and(
+        equal("service", HMRCMTDIT),
+        equal("nino", encryptedString(NinoWithoutSuffix(nino).value)),
+        equal("active", true)
       )
-      .headOption()
-  }
+    )
+    .first().toFutureOption()
 
   def deauthorise(
     serviceId: String,
     nino: NinoWithoutSuffix,
     arn: Arn,
     updated: Instant
-  ): Future[Boolean] = Mdc.preservingMdc {
-    collection
-      .updateOne(
-        and(
-          equal("service", serviceId),
-          equal("nino", encryptedString(nino.value)),
-          equal("arn", arn.value),
-          equal("active", true)
-        ),
-        combine(set("active", false), set("lastUpdated", updated))
-      )
-      .toFuture()
-      .map(_.getModifiedCount > 0)
-  }
+  ): Future[Boolean] = collection
+    .updateOne(
+      and(
+        equal("service", serviceId),
+        equal("nino", encryptedString(nino.value)),
+        equal("arn", arn.value),
+        equal("active", true)
+      ),
+      combine(set("active", false), set("lastUpdated", updated))
+    )
+    .toFuture()
+    .map(_.getModifiedCount > 0)
 
   // for example when a partialAuth becomes a MTD relationship we want to delete the partialAuth
   def deleteActivePartialAuth(
     serviceId: String,
     nino: NinoWithoutSuffix,
     arn: Arn
-  ): Future[Boolean] = Mdc.preservingMdc {
-    collection
-      .deleteOne(
-        and(
-          equal("service", serviceId),
-          equal("nino", encryptedString(nino.value)),
-          equal("arn", arn.value),
-          equal("active", true)
-        )
+  ): Future[Boolean] = collection
+    .deleteOne(
+      and(
+        equal("service", serviceId),
+        equal("nino", encryptedString(nino.value)),
+        equal("arn", arn.value),
+        equal("active", true)
       )
-      .toFuture()
-      .map(_.getDeletedCount == 1L)
-  }
+    )
+    .toFuture()
+    .map(_.getDeletedCount == 1L)
 
 }

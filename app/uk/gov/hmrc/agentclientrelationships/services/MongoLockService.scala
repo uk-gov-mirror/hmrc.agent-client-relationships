@@ -19,10 +19,8 @@ package uk.gov.hmrc.agentclientrelationships.services
 import com.google.inject.ImplementedBy
 import uk.gov.hmrc.agentclientrelationships.config.AppConfig
 import uk.gov.hmrc.agentclientrelationships.model.EnrolmentKey
-import uk.gov.hmrc.agentclientrelationships.repository.MongoLockRepositoryWithMdc
 import uk.gov.hmrc.agentclientrelationships.model.identifiers.Arn
-import uk.gov.hmrc.mongo.lock.LockService
-import uk.gov.hmrc.mdc.Mdc
+import uk.gov.hmrc.mongo.lock.{LockService, MongoLockRepository}
 
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -46,7 +44,7 @@ trait MongoLockService {
 }
 
 @Singleton
-class MongoLockServiceImpl @Inject() (lockRepository: MongoLockRepositoryWithMdc)
+class MongoLockServiceImpl @Inject() (lockRepository: MongoLockRepository)
 extends MongoLockService {
 
   def recoveryLock[T](
@@ -58,9 +56,7 @@ extends MongoLockService {
       lockId = s"recovery-${arn.value}-${enrolmentKey.tag}",
       ttl = 5.minutes
     )
-    Mdc.preservingMdc {
-      recoveryLock.withLock(body)
-    }
+    recoveryLock.withLock(body)
   }
 
   def schedulerLock[T](jobName: String)(body: => Future[T])(using
@@ -72,9 +68,7 @@ extends MongoLockService {
       lockId = s"scheduler-lock-$jobName",
       ttl = appConfig.emailSchedulerLockTTL.seconds
     )
-    Mdc.preservingMdc {
-      lockService.withLock(body)
-    }
+    lockService.withLock(body)
   }
 
   def partialAuthLock[T](jobName: String)(body: => Future[T])(using
@@ -86,9 +80,7 @@ extends MongoLockService {
       lockId = s"partial-auth-lock-$jobName",
       ttl = appConfig.emailSchedulerLockTTL.seconds
     )
-    Mdc.preservingMdc {
-      lockService.withLock(body)
-    }
+    lockService.withLock(body)
   }
 
 }
