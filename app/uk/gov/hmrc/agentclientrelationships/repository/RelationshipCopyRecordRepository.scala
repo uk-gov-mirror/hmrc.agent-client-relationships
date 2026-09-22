@@ -31,7 +31,6 @@ import uk.gov.hmrc.agentclientrelationships.model.identifiers.Service.MtdItSupp
 import uk.gov.hmrc.agentclientrelationships.repository.RelationshipCopyRecord.formats
 import uk.gov.hmrc.agentclientrelationships.repository.SyncStatus.*
 import uk.gov.hmrc.agentclientrelationships.util.RequestAwareLogging
-import uk.gov.hmrc.mdc.Mdc
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 
@@ -86,69 +85,58 @@ extends PlayMongoRepository[RelationshipCopyRecord](
 )
 with RequestAwareLogging {
 
-  def create(record: RelationshipCopyRecord): Future[Done] = Mdc.preservingMdc {
-    collection
-      .findOneAndReplace(
-        filter(
-          Arn(record.arn),
-          record.enrolmentKey
-        ),
-        record,
-        FindOneAndReplaceOptions().upsert(true)
-      )
-      .toFuture()
-      .map(_ => Done)
-  }
+  def create(record: RelationshipCopyRecord): Future[Done] = collection
+    .findOneAndReplace(
+      filter(
+        Arn(record.arn),
+        record.enrolmentKey
+      ),
+      record,
+      FindOneAndReplaceOptions().upsert(true)
+    )
+    .toFuture()
+    .map(_ => Done)
 
   def findBy(
     arn: Arn,
     enrolmentKey: EnrolmentKey
-  ): Future[Option[RelationshipCopyRecord]] = collection.find(filter(arn, enrolmentKey)).headOption()
+  ): Future[Option[RelationshipCopyRecord]] = collection.find(filter(arn, enrolmentKey)).first().toFutureOption()
 
   def updateEtmpSyncStatus(
     arn: Arn,
     enrolmentKey: EnrolmentKey,
     status: SyncStatus
-  )(using requestHeader: RequestHeader): Future[Done] = Mdc.preservingMdc {
-    collection
-      .updateMany(filter(arn, enrolmentKey), Updates.set("syncToETMPStatus", status.toString))
-      .toFuture()
-      .map { updateResult =>
-        if (updateResult.getModifiedCount != 1L)
-          logger.warn(s"Updated ${updateResult.getModifiedCount} documents when updating ETMP sync status to ($status)")
-        Done
-      }
-  }
+  )(using requestHeader: RequestHeader): Future[Done] = collection
+    .updateMany(filter(arn, enrolmentKey), Updates.set("syncToETMPStatus", status.toString))
+    .toFuture()
+    .map { updateResult =>
+      if (updateResult.getModifiedCount != 1L)
+        logger.warn(s"Updated ${updateResult.getModifiedCount} documents when updating ETMP sync status to ($status)")
+      Done
+    }
 
   def updateEsSyncStatus(
     arn: Arn,
     enrolmentKey: EnrolmentKey,
     status: SyncStatus
-  )(using requestHeader: RequestHeader): Future[Done] = Mdc.preservingMdc {
-    collection
-      .updateMany(filter(arn, enrolmentKey), Updates.set("syncToESStatus", status.toString))
-      .toFuture()
-      .map { updateResult =>
-        if (updateResult.getModifiedCount != 1L)
-          logger.warn(s"Updated ${updateResult.getModifiedCount} documents when updating ES sync status to ($status)")
-        Done
-      }
-  }
+  )(using requestHeader: RequestHeader): Future[Done] = collection
+    .updateMany(filter(arn, enrolmentKey), Updates.set("syncToESStatus", status.toString))
+    .toFuture()
+    .map { updateResult =>
+      if (updateResult.getModifiedCount != 1L)
+        logger.warn(s"Updated ${updateResult.getModifiedCount} documents when updating ES sync status to ($status)")
+      Done
+    }
 
   def remove(
     arn: Arn,
     enrolmentKey: EnrolmentKey
-  ): Future[Int] = Mdc.preservingMdc {
-    collection.deleteMany(filter(arn, enrolmentKey)).toFuture().map(res => res.getDeletedCount.toInt)
-  }
+  ): Future[Int] = collection.deleteMany(filter(arn, enrolmentKey)).toFuture().map(res => res.getDeletedCount.toInt)
 
-  def terminateAgent(arn: Arn): Future[Either[String, Int]] = Mdc.preservingMdc {
-    collection
-      .deleteMany(Filters.equal("arn", arn.value))
-      .toFuture()
-      .map(res => Right(res.getDeletedCount.toInt))
-      .recover { case ex: MongoWriteException => Left(ex.getMessage) }
-  }
+  def terminateAgent(arn: Arn): Future[Either[String, Int]] = collection.deleteMany(Filters.equal("arn", arn.value))
+    .toFuture()
+    .map(res => Right(res.getDeletedCount.toInt))
+    .recover { case ex: MongoWriteException => Left(ex.getMessage) }
 
   private def filter(
     arn: Arn,
@@ -168,7 +156,7 @@ with RequestAwareLogging {
   def backfillItsaCopyRecord(
     enrolmentKey: EnrolmentKey,
     arn: Arn
-  )(using requestHeader: RequestHeader): Future[Done] = Mdc.preservingMdc {
+  )(using requestHeader: RequestHeader): Future[Done] =
     if (Seq(MtdIt.enrolmentKey, MtdItSupp.enrolmentKey).contains(enrolmentKey.service))
       findBy(arn, enrolmentKey).flatMap {
         case Some(record) if record.syncToESStatus.contains(Success) && record.syncToETMPStatus.contains(Success) => Future.successful(Done)
@@ -185,6 +173,5 @@ with RequestAwareLogging {
       }
     else
       Future.successful(Done)
-  }
 
 }

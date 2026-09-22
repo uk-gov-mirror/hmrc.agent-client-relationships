@@ -188,35 +188,6 @@ This document provides an analysis of the MongoDB collections used by the `agent
 
 ---
 
-## 7. `locks`
-
-- **Repository File:** `MongoLockRepositoryWithMdc.scala` (extends `MongoLockRepository` from hmrc-mongo library)
-- **Purpose:** This collection provides distributed locking mechanism for scheduled jobs and background processes. It ensures that only one instance of a job runs at a time across multiple application instances. Used by the recovery scheduler and other background jobs to prevent concurrent execution.
-- **Schema Highlights:**
-  - `_id`: The lock identifier (unique).
-  - `owner`: The identifier of the process/instance that owns the lock.
-  - `expiryTime`: Timestamp when the lock will automatically expire.
-  - `timeCreated`: Timestamp when the lock was created.
-
-- **Sample Document:**
-
-  ```json
-  {
-    "_id": "RecoveryJob",
-    "owner": "instance-1",
-    "expiryTime": { "$date": "2025-09-11T12:30:00.000Z" },
-    "timeCreated": { "$date": "2025-09-11T12:00:00.000Z" }
-  }
-  ```
-
-- **Notes:**
-  - Provided by the `uk.gov.hmrc.mongo.lock.MongoLockRepository` library.
-  - `MongoLockRepositoryWithMdc` wraps the standard lock repository to preserve MDC (Mapped Diagnostic Context) for logging.
-  - Locks have a TTL (Time To Live) to prevent stuck locks from blocking jobs indefinitely.
-  - Used for distributed coordination across multiple application instances.
-
----
-
 ## Summary and Key Concepts
 
 ### Encryption
@@ -269,7 +240,6 @@ The `relationship-copy-record` and `delete-record` collections use `syncToETMPSt
 
 ## Additional Notes
 
-- All repositories use `Mdc.preservingMdc` to maintain Mapped Diagnostic Context for logging across async boundaries
 - The service uses `uk.gov.hmrc.mongo.play.json.PlayMongoRepository` from the hmrc-mongo library
 - Encryption uses `uk.gov.hmrc.agentclientrelationships.util.CryptoUtil.encryptedString` helper
 - Most operations are asynchronous returning `Future[T]`

@@ -38,7 +38,6 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.SessionId
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
-import uk.gov.hmrc.mdc.Mdc
 
 import java.time.Instant
 import java.time.LocalDateTime
@@ -128,98 +127,82 @@ extends PlayMongoRepository[DeleteRecord](
 )
 with RequestAwareLogging {
 
-  def create(record: DeleteRecord): Future[Done] = Mdc.preservingMdc {
-    collection
-      .insertOne(record)
-      .toFuture()
-      .map(_ => Done)
-  }
+  def create(record: DeleteRecord): Future[Done] = collection
+    .insertOne(record)
+    .toFuture()
+    .map(_ => Done)
 
   def findBy(
     arn: Arn,
     enrolmentKey: EnrolmentKey
-  ): Future[Option[DeleteRecord]] = Mdc.preservingMdc {
-    collection.find(filter(arn, enrolmentKey)).headOption()
-  }
+  ): Future[Option[DeleteRecord]] = collection.find(filter(arn, enrolmentKey)).first().toFutureOption()
 
   def updateEtmpSyncStatus(
     arn: Arn,
     enrolmentKey: EnrolmentKey,
     status: SyncStatus
-  )(using requestHeader: RequestHeader): Future[Done] = Mdc.preservingMdc {
-    collection
-      .updateOne(
-        filter(arn, enrolmentKey),
-        set("syncToETMPStatus", status.toString),
-        UpdateOptions().upsert(false)
-      )
-      .toFuture()
-      .map { updateResult =>
-        if (updateResult.getModifiedCount != 1L)
-          logger.warn(s"Updated ${updateResult.getModifiedCount} documents when updating ETMP sync status to ($status)")
-        Done
-      }
-  }
+  )(using requestHeader: RequestHeader): Future[Done] = collection
+    .updateOne(
+      filter(arn, enrolmentKey),
+      set("syncToETMPStatus", status.toString),
+      UpdateOptions().upsert(false)
+    )
+    .toFuture()
+    .map { updateResult =>
+      if (updateResult.getModifiedCount != 1L)
+        logger.warn(s"Updated ${updateResult.getModifiedCount} documents when updating ETMP sync status to ($status)")
+      Done
+    }
 
   def updateEsSyncStatus(
     arn: Arn,
     enrolmentKey: EnrolmentKey,
     status: SyncStatus
-  )(using requestHeader: RequestHeader): Future[Done] = Mdc.preservingMdc {
-    collection
-      .updateOne(
-        filter(arn, enrolmentKey),
-        set("syncToESStatus", status.toString),
-        UpdateOptions().upsert(false)
-      )
-      .toFuture()
-      .map { updateResult =>
-        if (updateResult.getModifiedCount != 1L)
-          logger.warn(s"Updated ${updateResult.getModifiedCount} documents when updating ES sync status to ($status)")
-        Done
-      }
-  }
+  )(using requestHeader: RequestHeader): Future[Done] = collection
+    .updateOne(
+      filter(arn, enrolmentKey),
+      set("syncToESStatus", status.toString),
+      UpdateOptions().upsert(false)
+    )
+    .toFuture()
+    .map { updateResult =>
+      if (updateResult.getModifiedCount != 1L)
+        logger.warn(s"Updated ${updateResult.getModifiedCount} documents when updating ES sync status to ($status)")
+      Done
+    }
 
   def markRecoveryAttempt(
     arn: Arn,
     enrolmentKey: EnrolmentKey
-  ): Future[Done] = Mdc.preservingMdc {
-    collection
-      .findOneAndUpdate(
-        filter(arn, enrolmentKey),
-        combine(
-          set("lastRecoveryAttempt", Instant.now().atZone(ZoneOffset.UTC).toLocalDateTime),
-          inc("numberOfAttempts", 1)
-        )
+  ): Future[Done] = collection
+    .findOneAndUpdate(
+      filter(arn, enrolmentKey),
+      combine(
+        set("lastRecoveryAttempt", Instant.now().atZone(ZoneOffset.UTC).toLocalDateTime),
+        inc("numberOfAttempts", 1)
       )
-      .toFuture()
-      .map(_ => Done)
-  }
+    )
+    .toFuture()
+    .map(_ => Done)
 
   def remove(
     arn: Arn,
     enrolmentKey: EnrolmentKey
-  ): Future[Int] = Mdc.preservingMdc {
-    collection
-      .deleteOne(filter(arn, enrolmentKey))
-      .toFuture()
-      .map(deleteResult => deleteResult.getDeletedCount.toInt)
-  }
+  ): Future[Int] = collection
+    .deleteOne(filter(arn, enrolmentKey))
+    .toFuture()
+    .map(deleteResult => deleteResult.getDeletedCount.toInt)
 
-  def selectNextToRecover(): Future[Option[DeleteRecord]] = Mdc.preservingMdc {
-    collection
-      .find(lte("dateTime", Instant.now().minusSeconds(30).atZone(ZoneOffset.UTC).toLocalDateTime))
-      .sort(Sorts.ascending("lastRecoveryAttempt"))
-      .headOption()
-  }
+  def selectNextToRecover(): Future[Option[DeleteRecord]] = collection
+    .find(lte("dateTime", Instant.now().minusSeconds(30).atZone(ZoneOffset.UTC).toLocalDateTime))
+    .sort(Sorts.ascending("lastRecoveryAttempt"))
+    .first().toFutureOption()
 
-  def terminateAgent(arn: Arn): Future[Either[String, Int]] = Mdc.preservingMdc {
-    collection
-      .deleteMany(equal("arn", arn.value))
-      .toFuture()
-      .map(deleteResult => Right(deleteResult.getDeletedCount.toInt))
-      .recover { case e: MongoWriteException => Left(e.getMessage) }
-  }
+  def terminateAgent(arn: Arn): Future[Either[String, Int]] = collection
+    .deleteMany(equal("arn", arn.value))
+    .toFuture()
+    .map(deleteResult => Right(deleteResult.getDeletedCount.toInt))
+    .recover { case e: MongoWriteException => Left(e.getMessage) }
 
   private def filter(
     arn: Arn,

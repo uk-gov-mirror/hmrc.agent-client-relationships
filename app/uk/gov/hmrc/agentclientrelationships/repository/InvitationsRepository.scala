@@ -38,7 +38,6 @@ import uk.gov.hmrc.agentclientrelationships.util.CryptoUtil.encryptedString
 import uk.gov.hmrc.agentclientrelationships.util.RequestAwareLogging
 import uk.gov.hmrc.crypto.Decrypter
 import uk.gov.hmrc.crypto.Encrypter
-import uk.gov.hmrc.mdc.Mdc
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.Codecs
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
@@ -131,7 +130,7 @@ with RequestAwareLogging {
     agencyEmail: String,
     expiryDate: LocalDate,
     clientType: Option[String]
-  ): Future[Invitation] = Mdc.preservingMdc {
+  ): Future[Invitation] =
     val invitation = Invitation.createNew(
       arn,
       service,
@@ -143,25 +142,22 @@ with RequestAwareLogging {
       clientType
     )
     collection.insertOne(invitation).toFuture().map(_ => invitation)
-  }
   // scalastyle:on
 
   def findOneByIdForAgent(
     arn: String,
     invitationId: String
-  ): Future[Option[Invitation]] = Mdc.preservingMdc {
-    collection
-      .find(combine(equal(arnKey, arn), equal(invitationIdKey, invitationId)))
-      .headOption()
-  }
+  ): Future[Option[Invitation]] = collection
+    .find(combine(equal(arnKey, arn), equal(invitationIdKey, invitationId)))
+    .first().toFutureOption()
 
   def cancelByIdForAgent(
     arn: String,
     invitationId: String
-  ): Future[CancelInvitationResponse] = Mdc.preservingMdc {
+  ): Future[CancelInvitationResponse] =
     val filterById = equal(invitationIdKey, invitationId)
 
-    collection.find(filterById).headOption().flatMap {
+    collection.find(filterById).first().toFutureOption().flatMap {
       case None => Future.successful(NotFound)
       case Some(invitation) if invitation.status == Cancelled => Future.successful(AlreadyCancelled)
       case Some(invitation) if invitation.status != Pending => Future.successful(WrongInvitationStatus)
@@ -182,20 +178,17 @@ with RequestAwareLogging {
           .toFuture()
           .map(_ => Success)
     }
-  }
 
-  def findOneById(invitationId: String): Future[Option[Invitation]] = Mdc.preservingMdc {
-    collection
-      .find(equal(invitationIdKey, invitationId))
-      .headOption()
-  }
+  def findOneById(invitationId: String): Future[Option[Invitation]] = collection
+    .find(equal(invitationIdKey, invitationId))
+    .first().toFutureOption()
 
   def findAllBy(
     arn: Option[String] = None,
     services: Seq[String] = Nil,
     clientIds: Seq[String] = Nil,
     status: Option[InvitationStatus] = None
-  ): Future[Seq[Invitation]] = Mdc.preservingMdc {
+  ): Future[Seq[Invitation]] =
     if (arn.isEmpty && clientIds.isEmpty)
       Future.successful(Nil) // no user-specific identifiers were provided
     else
@@ -218,59 +211,50 @@ with RequestAwareLogging {
           )
         )
         .toFuture()
-  }
 
-  def findAllForAgent(arn: String): Future[Seq[Invitation]] = Mdc.preservingMdc {
-    collection.find(equal(arnKey, arn)).toFuture()
-  }
+  def findAllForAgent(arn: String): Future[Seq[Invitation]] = collection.find(equal(arnKey, arn)).toFuture()
 
   def findAllForAgentService(
     arn: String,
     services: Seq[String]
-  ): Future[Seq[Invitation]] = Mdc.preservingMdc {
-    collection
-      .find(
-        and(
-          equal(arnKey, arn),
-          in(serviceKey, services*)
-        )
+  ): Future[Seq[Invitation]] = collection
+    .find(
+      and(
+        equal(arnKey, arn),
+        in(serviceKey, services*)
       )
-      .toFuture()
-  }
+    )
+    .toFuture()
 
   def findAllForAgent(
     arn: String,
     services: Seq[String],
     clientIds: Seq[String]
-  ): Future[Seq[Invitation]] = Mdc.preservingMdc {
-    collection
-      .find(
-        and(
-          equal(arnKey, arn),
-          in(serviceKey, services*),
-          in(
-            suppliedClientIdKey,
-            clientIds.map(_.replaceAll(" ", "")).map(getValidNinoWithoutSuffixOrClientId).map(encryptedString)*
-          )
+  ): Future[Seq[Invitation]] = collection
+    .find(
+      and(
+        equal(arnKey, arn),
+        in(serviceKey, services*),
+        in(
+          suppliedClientIdKey,
+          clientIds.map(_.replaceAll(" ", "")).map(getValidNinoWithoutSuffixOrClientId).map(encryptedString)*
         )
       )
-      .toFuture()
-  }
+    )
+    .toFuture()
 
   def updateStatus(
     invitationId: String,
     status: InvitationStatus,
     timestamp: Option[Instant] = None
-  ): Future[Invitation] = Mdc.preservingMdc {
-    collection
-      .findOneAndUpdate(
-        equal(invitationIdKey, invitationId),
-        combine(set("status", Codecs.toBson(status)), set("lastUpdated", timestamp.getOrElse(Instant.now()))),
-        FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER)
-      )
-      .headOption()
-      .map(_.getOrElse(throw new RuntimeException(s"Could not find an invitation with invitationId '$invitationId'")))
-  }
+  ): Future[Invitation] = collection
+    .findOneAndUpdate(
+      equal(invitationIdKey, invitationId),
+      combine(set("status", Codecs.toBson(status)), set("lastUpdated", timestamp.getOrElse(Instant.now()))),
+      FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER)
+    )
+    .toFutureOption()
+    .map(_.getOrElse(throw new RuntimeException(s"Could not find an invitation with invitationId '$invitationId'")))
 
   def deauthAcceptedInvitations(
     service: String,
@@ -279,55 +263,51 @@ with RequestAwareLogging {
     invitationIdToIgnore: Option[String],
     relationshipEndedBy: String,
     timestamp: Instant = Instant.now()
-  ): Future[Boolean] = Mdc.preservingMdc {
-    collection
-      .updateMany(
-        and(
-          Seq(
-            Some(in(
-              statusKey,
-              Codecs.toBson[InvitationStatus](Accepted),
-              Codecs.toBson[InvitationStatus](PartialAuth)
-            )),
-            Some(equal(serviceKey, service)),
-            Some(equal(suppliedClientIdKey, encryptedString(getValidNinoWithoutSuffixOrClientId(clientId)))),
-            optArn.map(a => equal(arnKey, a)),
-            invitationIdToIgnore
-              .map(id => notEqual(invitationIdKey, id))
-          ).flatten*
-        ),
-        combine(
-          set(statusKey, Codecs.toBson[InvitationStatus](DeAuthorised)),
-          set(lastUpdatedKey, timestamp),
-          set(relationshipEndedByKey, relationshipEndedBy)
-        ),
-        UpdateOptions()
-      )
-      .toFuture()
-      .map(_.getModifiedCount > 0)
-  }
+  ): Future[Boolean] = collection
+    .updateMany(
+      and(
+        Seq(
+          Some(in(
+            statusKey,
+            Codecs.toBson[InvitationStatus](Accepted),
+            Codecs.toBson[InvitationStatus](PartialAuth)
+          )),
+          Some(equal(serviceKey, service)),
+          Some(equal(suppliedClientIdKey, encryptedString(getValidNinoWithoutSuffixOrClientId(clientId)))),
+          optArn.map(a => equal(arnKey, a)),
+          invitationIdToIgnore
+            .map(id => notEqual(invitationIdKey, id))
+        ).flatten*
+      ),
+      combine(
+        set(statusKey, Codecs.toBson[InvitationStatus](DeAuthorised)),
+        set(lastUpdatedKey, timestamp),
+        set(relationshipEndedByKey, relationshipEndedBy)
+      ),
+      UpdateOptions()
+    )
+    .toFuture()
+    .map(_.getModifiedCount > 0)
 
   def updatePartialAuthToAcceptedStatus(
     arn: Arn,
     service: String,
     nino: NinoWithoutSuffix
-  ): Future[Boolean] = Mdc.preservingMdc {
-    collection
-      .updateOne(
-        and(
-          equal(arnKey, arn.value),
-          equal(suppliedClientIdKey, encryptedString(nino.value)),
-          equal(serviceKey, service),
-          equal(statusKey, Codecs.toBson[InvitationStatus](PartialAuth))
-        ),
-        combine(
-          set(statusKey, Codecs.toBson[InvitationStatus](Accepted)),
-          set(lastUpdatedKey, Instant.now)
-        )
+  ): Future[Boolean] = collection
+    .updateOne(
+      and(
+        equal(arnKey, arn.value),
+        equal(suppliedClientIdKey, encryptedString(nino.value)),
+        equal(serviceKey, service),
+        equal(statusKey, Codecs.toBson[InvitationStatus](PartialAuth))
+      ),
+      combine(
+        set(statusKey, Codecs.toBson[InvitationStatus](Accepted)),
+        set(lastUpdatedKey, Instant.now)
       )
-      .toFuture()
-      .map(_.getModifiedCount == 1L)
-  }
+    )
+    .toFuture()
+    .map(_.getModifiedCount == 1L)
 
   def updateInvitation(
     service: String,
@@ -336,24 +316,22 @@ with RequestAwareLogging {
     newService: String,
     newClientId: String,
     newClientIdType: String
-  ): Future[Boolean] = Mdc.preservingMdc {
-    collection
-      .updateOne(
-        and(
-          equal(serviceKey, service),
-          equal(suppliedClientIdKey, encryptedString(clientId)),
-          equal("suppliedClientIdType", clientIdType)
-        ),
-        combine(
-          set(serviceKey, newService),
-          set(suppliedClientIdKey, encryptedString(newClientId)),
-          set("suppliedClientIdType", newClientIdType),
-          set("lastUpdated", Instant.now)
-        )
+  ): Future[Boolean] = collection
+    .updateOne(
+      and(
+        equal(serviceKey, service),
+        equal(suppliedClientIdKey, encryptedString(clientId)),
+        equal("suppliedClientIdType", clientIdType)
+      ),
+      combine(
+        set(serviceKey, newService),
+        set(suppliedClientIdKey, encryptedString(newClientId)),
+        set("suppliedClientIdType", newClientIdType),
+        set("lastUpdated", Instant.now)
       )
-      .toFuture()
-      .map(_.getModifiedCount == 1L)
-  }
+    )
+    .toFuture()
+    .map(_.getModifiedCount == 1L)
 
   private def makeTrackRequestsFilters(
     statusFilter: Option[String],
@@ -380,7 +358,7 @@ with RequestAwareLogging {
     clientName: Option[String],
     pageNumber: Int,
     pageSize: Int
-  ): Future[TrackRequestsResult] = Mdc.preservingMdc {
+  ): Future[TrackRequestsResult] =
     val filters = makeTrackRequestsFilters(statusFilter, clientName)
     val fullAggregatePipeline = Seq(
       Aggregates.filter(equal(arnKey, arn)),
@@ -420,7 +398,6 @@ with RequestAwareLogging {
           case _ => None
         }
     )
-  }
 
   def findAllForWarningEmail: Observable[WarningEmailAggregationResult] = {
 
@@ -447,19 +424,15 @@ with RequestAwareLogging {
     )
   )
 
-  def updateWarningEmailSent(invitationId: String): Future[Boolean] = Mdc.preservingMdc {
-    collection
-      .updateOne(equal(invitationIdKey, invitationId), set(warningEmaiSentKey, true))
-      .toFuture()
-      .map(_.getModifiedCount == 1L)
-  }
+  def updateWarningEmailSent(invitationId: String): Future[Boolean] = collection
+    .updateOne(equal(invitationIdKey, invitationId), set(warningEmaiSentKey, true))
+    .toFuture()
+    .map(_.getModifiedCount == 1L)
 
-  def updateExpiredEmailSent(invitationId: String): Future[Boolean] = Mdc.preservingMdc {
-    collection
-      .updateOne(equal(invitationIdKey, invitationId), set(expiredEmailSentKey, true))
-      .toFuture()
-      .map(_.getModifiedCount == 1L)
-  }
+  def updateExpiredEmailSent(invitationId: String): Future[Boolean] = collection
+    .updateOne(equal(invitationIdKey, invitationId), set(expiredEmailSentKey, true))
+    .toFuture()
+    .map(_.getModifiedCount == 1L)
 
   private def getValidNinoWithoutSuffixOrClientId(clientId: String): String = {
     clientId match {

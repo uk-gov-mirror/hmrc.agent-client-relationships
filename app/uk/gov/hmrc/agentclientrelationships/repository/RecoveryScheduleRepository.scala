@@ -25,7 +25,6 @@ import play.api.libs.json.*
 import uk.gov.hmrc.agentclientrelationships.model.MongoLocalDateTimeFormat
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
-import uk.gov.hmrc.mdc.Mdc
 
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -59,38 +58,35 @@ extends PlayMongoRepository[RecoveryRecord](
 )
 with Logging {
 
-  def read: Future[RecoveryRecord] = Mdc.preservingMdc {
-    collection
-      .find()
-      .headOption()
-      .flatMap {
-        case Some(record) => Future successful record
-        case None =>
-          {
-            val record = RecoveryRecord(
-              UUID.randomUUID().toString,
-              LocalDateTime.now().atZone(ZoneOffset.UTC).toLocalDateTime
-            )
-            collection.insertOne(record).toFuture().map(_ => record)
-          }.recoverWith { case NonFatal(error) =>
-            logger.warn(s"Creating RecoveryRecord failed: ${error.getMessage}")
-            Future.failed(error)
-          }
-      }
-  }
+  def read: Future[RecoveryRecord] = collection
+    .find()
+    .first()
+    .toFutureOption()
+    .flatMap {
+      case Some(record) => Future successful record
+      case None =>
+        {
+          val record = RecoveryRecord(
+            UUID.randomUUID().toString,
+            LocalDateTime.now().atZone(ZoneOffset.UTC).toLocalDateTime
+          )
+          collection.insertOne(record).toFuture().map(_ => record)
+        }.recoverWith { case NonFatal(error) =>
+          logger.warn(s"Creating RecoveryRecord failed: ${error.getMessage}")
+          Future.failed(error)
+        }
+    }
 
   def write(
     newUid: String,
     newRunAt: LocalDateTime
-  ): Future[Unit] = Mdc.preservingMdc {
-    collection
-      .findOneAndUpdate(
-        Filters.exists("uid"),
-        Updates.combine(set("uid", newUid), set("runAt", newRunAt)),
-        FindOneAndUpdateOptions().upsert(true)
-      )
-      .toFuture()
-      .map(_ => ())
-  }
+  ): Future[Unit] = collection
+    .findOneAndUpdate(
+      Filters.exists("uid"),
+      Updates.combine(set("uid", newUid), set("runAt", newRunAt)),
+      FindOneAndUpdateOptions().upsert(true)
+    )
+    .toFuture()
+    .map(_ => ())
 
 }
